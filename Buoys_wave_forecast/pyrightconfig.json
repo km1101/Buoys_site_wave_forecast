@@ -1,0 +1,5 @@
+{
+  "venvPath": "dashboard",
+  "venv": ".venv",
+  "extraPaths": ["dashboard"]
+}

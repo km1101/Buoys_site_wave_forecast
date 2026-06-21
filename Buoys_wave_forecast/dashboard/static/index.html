@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tidal Plot — marine wave forecast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0A1620;
+  --panel:#0F2030;
+  --panel-raised:#16293A;
+  --panel-raised-2:#1C3247;
+  --line:#23394A;
+  --foam:#5FE3C7;
+  --foam-dim:#2C5A50;
+  --amber:#F2A65A;
+  --coral:#F2785C;
+  --text:#E7EEF1;
+  --mist:#8AA3B0;
+  --mist-dim:#5C7282;
+  --danger:#F2785C;
+  --radius-s:6px;
+  --radius-m:10px;
+  --radius-l:16px;
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--ink);
+  color:var(--text);
+  font-family:var(--font-body);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+button{font-family:inherit;cursor:pointer;}
+input{font-family:inherit;}
+a{color:var(--foam);}
+
+.topbar{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  padding:18px 24px;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#0D1C29,#0A1620);
+  position:sticky;
+  top:0;
+  z-index:30;
+}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-mark{
+  width:38px;height:38px;border-radius:var(--radius-m);
+  background:var(--panel-raised);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.brand-mark svg{width:22px;height:22px;}
+.brand h1{font-family:var(--font-display);font-size:18px;font-weight:600;margin:0;letter-spacing:.2px;}
+.brand p{font-size:12px;color:var(--mist);margin:2px 0 0;}
+.tideline-wrap{flex:1;min-width:60px;height:30px;overflow:hidden;display:none;}
+.tideline-wrap svg{width:100%;height:100%;}
+.status{
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--font-mono);font-size:11px;color:var(--mist);
+  white-space:nowrap;
+}
+.status .dot{width:7px;height:7px;border-radius:50%;background:var(--mist-dim);}
+.status.ok .dot{background:var(--foam);box-shadow:0 0 0 3px rgba(95,227,199,.18);}
+.status.err .dot{background:var(--coral);box-shadow:0 0 0 3px rgba(242,120,92,.18);}
+.filters-toggle{
+  display:none;
+  align-items:center;gap:6px;
+  background:var(--panel-raised);border:1px solid var(--line);color:var(--text);
+  padding:9px 14px;border-radius:var(--radius-m);font-size:13px;font-weight:500;
+}
+
+.layout{display:flex;align-items:flex-start;}
+
+.filters{
+  width:296px;flex:0 0 296px;
+  padding:20px;
+  border-right:1px solid var(--line);
+  position:sticky;top:65px;
+  max-height:calc(100vh - 65px);
+  overflow-y:auto;
+}
+.filter-group{margin-bottom:24px;}
+.filter-core{
+  margin-bottom:24px;
+  padding-bottom:8px;
+  border-bottom:1px solid var(--line);
+}
+.filter-core .filter-group:last-child{margin-bottom:16px;}
+.filter-group h2{
+  font-family:var(--font-display);font-size:12.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.07em;color:var(--mist);margin:0 0 10px;
+}
+.chip-groups .chip-subhead{font-size:10.5px;color:var(--mist-dim);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px;}
+.chip-groups .chip-subhead:first-child{margin-top:0;}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{
+  border:1px solid var(--line);background:var(--panel-raised);color:var(--mist);
+  font-size:12.5px;padding:6px 11px;border-radius:999px;font-weight:500;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.chip:hover{border-color:var(--mist-dim);}
+.chip.active{background:rgba(95,227,199,.14);border-color:var(--foam);color:var(--foam);}
+.chip:focus-visible{outline:2px solid var(--foam);outline-offset:1px;}
+
+.all-models-row{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--mist);}
+.all-models-row input{accent-color:var(--foam);}
+
+.range-tabs{display:flex;gap:6px;margin-bottom:12px;background:var(--panel-raised);border-radius:var(--radius-m);padding:3px;}
+.range-tabs button{
+  flex:1;border:none;background:transparent;color:var(--mist);font-size:12px;font-weight:500;
+  padding:7px 0;border-radius:8px;
+}
+.range-tabs button.active{background:var(--foam);color:#06241D;}
+
+.days-field{display:flex;align-items:center;gap:10px;}
+.days-field input[type=range]{flex:1;accent-color:var(--foam);}
+.days-field output{font-family:var(--font-mono);font-size:12.5px;color:var(--text);min-width:54px;text-align:right;}
+
+.date-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+.date-field:last-child{margin-bottom:0;}
+.date-field label{font-size:11.5px;color:var(--mist);}
+.date-field input{
+  background:var(--panel-raised);border:1px solid var(--line);color:var(--text);
+  border-radius:var(--radius-s);padding:8px 10px;font-size:13px;
+  color-scheme:dark;
+}
+
+.apply-btn{
+  width:100%;background:var(--foam);color:#06241D;border:none;
+  font-weight:600;font-size:13.5px;padding:11px 0;border-radius:var(--radius-m);
+  margin-top:6px;
+}
+.apply-btn:active{transform:scale(.98);}
+.apply-btn.loading{opacity:.7;}
+
+.charts{flex:1;min-width:0;padding:20px 24px 110px;display:flex;flex-direction:column;gap:18px;}
+
+.chart-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-l);
+  padding:16px 18px 8px;
+}
+.chart-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px;}
+.chart-card-title{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.chart-card-title h3{font-family:var(--font-display);font-size:14.5px;font-weight:600;margin:0;}
+.chart-card-title p{font-size:11.5px;color:var(--mist);margin:0;font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.chart-card-tag{
+  font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mist-dim);
+  background:var(--panel-raised);padding:2px 7px;border-radius:5px;align-self:flex-start;
+}
+.chart-card-actions{display:flex;gap:6px;flex-shrink:0;}
+.icon-btn{
+  border:1px solid var(--line);background:var(--panel-raised);color:var(--mist);
+  width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:14px;line-height:1;
+}
+.icon-btn:hover{color:var(--text);border-color:var(--mist-dim);}
+.icon-btn.danger:hover{color:var(--coral);border-color:var(--coral);}
+
+.chart-overrides{
+  display:none;margin:12px 0 6px;padding:14px;background:var(--panel-raised);border-radius:var(--radius-m);
+  border:1px solid var(--line);
+}
+.chart-overrides.open{display:block;}
+.override-row{margin-bottom:12px;}
+.override-row:last-child{margin-bottom:0;}
+.override-row label{font-size:11px;color:var(--mist);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;}
+.override-select{
+  width:100%;background:var(--panel-raised-2);border:1px solid var(--line);color:var(--text);
+  padding:8px 10px;border-radius:var(--radius-s);font-size:13px;
+}
+
+.chart-canvas-wrap{position:relative;height:280px;margin-top:8px;}
+.chart-status{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:12.5px;color:var(--mist);text-align:center;padding:0 20px;flex-direction:column;gap:8px;
+}
+.chart-status.hidden{display:none;}
+.spinner{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--foam);animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.empty-state{
+  text-align:center;padding:60px 24px;color:var(--mist);
+}
+.empty-state h3{font-family:var(--font-display);color:var(--text);font-size:16px;margin:0 0 6px;}
+.empty-state p{font-size:13px;margin:0;}
+
+.add-chart-bar{display:flex;justify-content:center;padding:4px 0 0;}
+.add-chart-btn{
+  display:flex;align-items:center;gap:8px;
+  background:var(--panel-raised);border:1px dashed var(--mist-dim);color:var(--text);
+  padding:11px 20px;border-radius:999px;font-size:13.5px;font-weight:500;
+}
+.add-chart-btn:hover{border-color:var(--foam);color:var(--foam);}
+.add-chart-btn svg{width:15px;height:15px;}
+
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
+
+@media (max-width:880px){
+  .topbar{padding:14px 16px;}
+  .brand h1{font-size:16px;}
+  .filters-toggle{display:flex;}
+  .layout{display:block;}
+  .filters{
+    position:fixed;top:0;left:0;bottom:0;width:86%;max-width:340px;z-index:50;
+    background:var(--ink);border-right:1px solid var(--line);
+    transform:translateX(-104%);transition:transform .22s ease;
+    max-height:none;padding-top:70px;
+  }
+  .filters.open{transform:translateX(0);}
+  .filters-backdrop{
+    position:fixed;inset:0;background:rgba(5,10,15,.6);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s;
+  }
+  .filters-backdrop.open{opacity:1;pointer-events:auto;}
+  .filters-close{
+    position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:8px;
+    background:var(--panel-raised);border:1px solid var(--line);color:var(--text);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .charts{padding:16px 14px 100px;}
+  .chart-card-title p{max-width:160px;}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#5FE3C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 16c1.6 1.6 3.2 1.6 4.8 0 1.6-1.6 3.2-1.6 4.8 0 1.6 1.6 3.2 1.6 4.8 0 1.6-1.6 3.2-1.6 4.8 0"/>
+        <path d="M2 11c1.6 1.6 3.2 1.6 4.8 0 1.6-1.6 3.2-1.6 4.8 0 1.6 1.6 3.2 1.6 4.8 0 1.6-1.6 3.2-1.6 4.8 0" opacity=".45"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Buoy Sites Wave Forecast</h1>
+      <p>Multi-model wave forecast viewer</p>
+    </div>
+  </div>
+  <div class="tideline-wrap"><svg id="tideline" viewBox="0 0 600 30" preserveAspectRatio="none"></svg></div>
+  <div class="status" id="status"><span class="dot"></span><span id="statusText">Connecting…</span></div>
+  <button class="filters-toggle" id="filtersToggle" aria-label="Open filters">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+    Filters
+  </button>
+</header>
+
+<div class="filters-backdrop" id="filtersBackdrop"></div>
+
+<div class="layout">
+  <aside class="filters" id="filtersPanel" aria-label="Forecast filters">
+    <button class="filters-close" id="filtersClose" aria-label="Close filters">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+
+    <div class="filter-core">
+      <section class="filter-group">
+        <h2>Sites</h2>
+        <div class="chip-row" id="siteChips"></div>
+      </section>
+
+      <section class="filter-group">
+        <h2>Parameters</h2>
+        <div class="chip-groups" id="parameterChips"></div>
+      </section>
+
+      <section class="filter-group">
+        <h2>Models</h2>
+        <div class="chip-row" id="modelChips"></div>
+        <div class="all-models-row">
+          <input type="checkbox" id="allModels">
+          <label for="allModels">Use every available model</label>
+        </div>
+      </section>
+    </div>
+
+    <section class="filter-group">
+      <h2>Time range</h2>
+      <div class="range-tabs" role="tablist">
+        <button type="button" class="active" data-mode="days" role="tab" aria-selected="true">Next N days</button>
+        <button type="button" data-mode="dates" role="tab" aria-selected="false">Custom dates</button>
+      </div>
+      <div id="daysMode" class="days-field">
+        <input type="range" min="1" max="14" value="7" step="1" id="daysAhead">
+        <output id="daysAheadOut">7 days</output>
+      </div>
+      <div id="datesMode" hidden>
+        <div class="date-field"><label for="startDate">Start</label><input type="date" id="startDate"></div>
+        <div class="date-field"><label for="endDate">End</label><input type="date" id="endDate"></div>
+      </div>
+    </section>
+
+    <button class="apply-btn" id="applyBtn">Update charts</button>
+  </aside>
+
+  <main class="charts" id="chartsContainer">
+    <div class="empty-state" id="emptyState">
+      <h3>Pick a site to begin</h3>
+      <p>Choose a site, wave height is selected by default with the best_match model.</p>
+    </div>
+  </main>
+</div>
+
+<div class="add-chart-bar">
+  <button class="add-chart-btn" id="addChartBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    Add chart
+  </button>
+</div>
+
+<template id="chartCardTemplate">
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <div class="chart-card-title">
+        <span class="chart-card-tag tag"></span>
+        <h3 class="title"></h3>
+        <p class="subtitle"></p>
+      </div>
+      <div class="chart-card-actions">
+        <button class="icon-btn edit-btn" aria-label="Edit chart">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </button>
+        <button class="icon-btn danger remove-btn" aria-label="Remove chart">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="chart-overrides">
+      <div class="override-row">
+        <label>Sites</label>
+        <div class="chip-row site-chips"></div>
+      </div>
+      <div class="override-row">
+        <label>Parameter</label>
+        <select class="override-select param-select"></select>
+      </div>
+      <div class="override-row">
+        <label>Models</label>
+        <div class="chip-row model-chips"></div>
+      </div>
+    </div>
+    <div class="chart-canvas-wrap">
+      <canvas></canvas>
+      <div class="chart-status"><div class="spinner"></div><span>Loading forecast…</span></div>
+    </div>
+  </div>
+</template>
+
+<script src="/static/chart.umd.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  function requireChart(){
+    if(typeof Chart === 'undefined'){
+      throw new Error('Chart library failed to load. Hard-refresh the page (Ctrl+Shift+R).');
+    }
+    return Chart;
+  }
+
+  var COLORS = ['#5FE3C7','#F2A65A','#F2785C','#7AA9FF','#C792EA','#FFD166','#4FB6E0','#E36BAE','#8CD867','#B8A1FF'];
+  var colorIndex = new Map();
+  function colorFor(key){
+    if(!colorIndex.has(key)) colorIndex.set(key, colorIndex.size);
+    return COLORS[colorIndex.get(key) % COLORS.length];
+  }
+
+  var state = {
+    parameters: [],
+    sites: [],
+    models: [],
+    selectedParameters: [],
+    selectedSites: [],
+    selectedModels: [],
+    allModels: false,
+    rangeMode: 'days',
+    daysAhead: 7,
+    startDate: null,
+    endDate: null
+  };
+
+  var charts = [];
+  var chartIdSeq = 1;
+
+  function $(sel, root){ return (root||document).querySelector(sel); }
+  function $all(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+
+  function setStatus(mode, text){
+    var el = $('#status');
+    el.className = 'status ' + mode;
+    $('#statusText').textContent = text;
+  }
+
+  function todayISO(offsetDays){
+    var d = new Date();
+    d.setUTCDate(d.getUTCDate() + (offsetDays||0));
+    return d.toISOString().slice(0,10);
+  }
+
+  function fmtTimeLabel(iso){
+    var d = new Date(iso);
+    return d.toLocaleString(undefined, { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+  }
+
+  function api(path){
+    return fetch(path).then(function(res){
+      return res.json().then(function(body){
+        if(!res.ok){ throw new Error(body && body.detail ? body.detail : ('Request failed (' + res.status + ')')); }
+        return body;
+      });
+    });
+  }
+
+  function defaultModelId(){
+    var bestMatch = state.models.find(function(m){ return m.model_name === 'best_match'; });
+    return bestMatch ? bestMatch.model_id : (state.models[0] ? state.models[0].model_id : null);
+  }
+
+  function applyDefaultSelections(){
+    state.selectedParameters = ['wave_height'];
+    if(state.sites.length){ state.selectedSites = [state.sites[0].site_id]; }
+    state.allModels = false;
+    $('#allModels').checked = false;
+    var modelId = defaultModelId();
+    state.selectedModels = modelId ? [modelId] : [];
+  }
+
+  function loadMeta(){
+    setStatus('', 'Connecting…');
+    return Promise.all([
+      api('/api/parameters'),
+      api('/api/sites'),
+      api('/api/models')
+    ]).then(function(results){
+      state.parameters = results[0];
+      state.sites = results[1];
+      state.models = results[2];
+      setStatus('ok', 'Connected');
+      renderParameterChips();
+      renderSiteChips();
+      renderModelChips();
+      applyDefaultSelections();
+      syncChipState();
+      ensureAutoCharts();
+      refreshAll();
+    }).catch(function(err){
+      setStatus('err', 'Offline');
+      $('#chartsContainer').innerHTML = '<div class="empty-state"><h3>Could not reach the forecast API</h3><p>' + escapeHtml(err.message) + '</p></div>';
+    });
+  }
+
+  function escapeHtml(s){
+    var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+  }
+
+  function groupBy(list, key){
+    var out = {}, order = [];
+    list.forEach(function(item){
+      var k = item[key];
+      if(!out[k]){ out[k] = []; order.push(k); }
+      out[k].push(item);
+    });
+    return { groups: out, order: order };
+  }
+
+  function renderParameterChips(){
+    var wrap = $('#parameterChips');
+    wrap.innerHTML = '';
+    var g = groupBy(state.parameters, 'group');
+    g.order.forEach(function(groupName){
+      var head = document.createElement('div');
+      head.className = 'chip-subhead';
+      head.textContent = groupName;
+      wrap.appendChild(head);
+      var row = document.createElement('div');
+      row.className = 'chip-row';
+      g.groups[groupName].forEach(function(p){
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chip';
+        btn.textContent = p.label;
+        btn.dataset.id = p.id;
+        btn.setAttribute('aria-pressed','false');
+        btn.addEventListener('click', function(){
+          toggleInArray(state.selectedParameters, p.id);
+          syncChipState();
+          ensureAutoCharts();
+          scheduleRefresh();
+        });
+        row.appendChild(btn);
+      });
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderSiteChips(){
+    var wrap = $('#siteChips');
+    wrap.innerHTML = '';
+    state.sites.forEach(function(s){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      btn.textContent = s.site_name;
+      btn.dataset.id = s.site_id;
+      btn.setAttribute('aria-pressed','false');
+      btn.addEventListener('click', function(){
+        toggleInArray(state.selectedSites, s.site_id);
+        syncChipState();
+        scheduleRefresh();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function renderModelChips(){
+    var wrap = $('#modelChips');
+    wrap.innerHTML = '';
+    state.models.forEach(function(m){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      btn.textContent = m.model_name;
+      btn.dataset.id = m.model_id;
+      btn.setAttribute('aria-pressed','false');
+      btn.addEventListener('click', function(){
+        $('#allModels').checked = false;
+        state.allModels = false;
+        toggleInArray(state.selectedModels, m.model_id);
+        syncChipState();
+        scheduleRefresh();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function toggleInArray(arr, id){
+    var idx = arr.indexOf(id);
+    if(idx === -1) arr.push(id); else arr.splice(idx,1);
+  }
+
+  function syncChipState(){
+    $all('#parameterChips .chip').forEach(function(btn){
+      var active = state.selectedParameters.indexOf(btn.dataset.id) !== -1;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active);
+    });
+    $all('#siteChips .chip').forEach(function(btn){
+      var active = state.selectedSites.indexOf(btn.dataset.id) !== -1;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active);
+    });
+    $all('#modelChips .chip').forEach(function(btn){
+      var active = !state.allModels && state.selectedModels.indexOf(btn.dataset.id) !== -1;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active);
+    });
+  }
+
+  $('#allModels').addEventListener('change', function(e){
+    state.allModels = e.target.checked;
+    if(state.allModels) state.selectedModels = [];
+    syncChipState();
+    scheduleRefresh();
+  });
+
+  $all('.range-tabs button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      $all('.range-tabs button').forEach(function(b){ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected','true');
+      state.rangeMode = btn.dataset.mode;
+      $('#daysMode').hidden = state.rangeMode !== 'days';
+      $('#datesMode').hidden = state.rangeMode !== 'dates';
+      scheduleRefresh();
+    });
+  });
+
+  $('#daysAhead').addEventListener('input', function(e){
+    state.daysAhead = parseInt(e.target.value, 10);
+    $('#daysAheadOut').textContent = state.daysAhead + (state.daysAhead === 1 ? ' day' : ' days');
+    scheduleRefresh();
+  });
+  $('#startDate').value = todayISO(0);
+  $('#endDate').value = todayISO(7);
+  state.startDate = $('#startDate').value;
+  state.endDate = $('#endDate').value;
+  $('#startDate').addEventListener('change', function(e){ state.startDate = e.target.value; scheduleRefresh(); });
+  $('#endDate').addEventListener('change', function(e){ state.endDate = e.target.value; scheduleRefresh(); });
+
+  var refreshTimer = null;
+  function scheduleRefresh(){
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(refreshAll, 450);
+  }
+
+  $('#applyBtn').addEventListener('click', function(){ refreshAll(); });
+
+  function buildTimeParams(){
+    if(state.rangeMode === 'dates'){
+      return 'start_date=' + encodeURIComponent(state.startDate) + '&end_date=' + encodeURIComponent(state.endDate);
+    }
+    return 'days_ahead=' + state.daysAhead;
+  }
+
+  function ensureAutoCharts(){
+    var autoIds = state.selectedParameters.slice();
+    charts = charts.filter(function(c){ return c.mode !== 'auto' || autoIds.indexOf(c.parameter) !== -1; });
+    autoIds.forEach(function(paramId){
+      var exists = charts.some(function(c){ return c.mode === 'auto' && c.parameter === paramId; });
+      if(!exists){
+        charts.push({ id: 'c' + (chartIdSeq++), mode:'auto', parameter: paramId, sites:null, models:null });
+      }
+    });
+    charts.sort(function(a,b){
+      if(a.mode !== b.mode) return a.mode === 'auto' ? -1 : 1;
+      return 0;
+    });
+    renderChartCards();
+  }
+
+  function addCustomChart(){
+    charts.push({
+      id: 'c' + (chartIdSeq++),
+      mode: 'custom',
+      parameter: state.selectedParameters[0] || (state.parameters[0] && state.parameters[0].id),
+      sites: state.selectedSites.slice(),
+      models: state.allModels ? null : state.selectedModels.slice()
+    });
+    renderChartCards();
+    refreshAll();
+  }
+  $('#addChartBtn').addEventListener('click', addCustomChart);
+
+  function paramLabel(id){
+    var p = state.parameters.find(function(p){ return p.id === id; });
+    return p ? p.label : id;
+  }
+  function siteLabel(id){
+    var s = state.sites.find(function(s){ return s.site_id === id; });
+    return s ? s.site_name : id;
+  }
+
+  function renderChartCards(){
+    var container = $('#chartsContainer');
+    var existingEls = {};
+    $all('.chart-card', container).forEach(function(el){ existingEls[el.dataset.chartId] = el; });
+
+    if(charts.length === 0){
+      container.innerHTML = '<div class="empty-state" id="emptyState"><h3>Pick a site to begin</h3><p>Choose a site, wave height is selected by default with the best_match model.</p></div>';
+      return;
+    }
+    var empty = $('#emptyState', container);
+    if(empty) empty.remove();
+
+    charts.forEach(function(chart){
+      var el = existingEls[chart.id];
+      if(!el){
+        el = instantiateCard(chart);
+        container.appendChild(el);
+      }
+      updateCardHeader(el, chart);
+    });
+
+    Object.keys(existingEls).forEach(function(id){
+      if(!charts.some(function(c){ return c.id === id; })){
+        existingEls[id].remove();
+      }
+    });
+  }
+
+  function instantiateCard(chart){
+    var tpl = $('#chartCardTemplate');
+    var node = tpl.content.firstElementChild.cloneNode(true);
+    node.dataset.chartId = chart.id;
+
+    var paramSelect = $('.param-select', node);
+    state.parameters.forEach(function(p){
+      var opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = p.label;
+      paramSelect.appendChild(opt);
+    });
+    paramSelect.value = chart.parameter;
+    paramSelect.addEventListener('change', function(){
+      chart.parameter = paramSelect.value;
+      updateCardHeader(node, chart);
+      renderChart(chart, node);
+    });
+
+    var siteChips = $('.site-chips', node);
+    state.sites.forEach(function(s){
+      var btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'chip'; btn.textContent = s.site_name;
+      btn.addEventListener('click', function(){
+        if(!chart.sites) chart.sites = state.selectedSites.slice();
+        toggleInArray(chart.sites, s.site_id);
+        btn.classList.toggle('active', chart.sites.indexOf(s.site_id) !== -1);
+        updateCardHeader(node, chart);
+        renderChart(chart, node);
+      });
+      siteChips.appendChild(btn);
+    });
+
+    var modelChips = $('.model-chips', node);
+    state.models.forEach(function(m){
+      var btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'chip'; btn.textContent = m.model_name;
+      btn.addEventListener('click', function(){
+        if(!chart.models) chart.models = [];
+        toggleInArray(chart.models, m.model_id);
+        btn.classList.toggle('active', chart.models.indexOf(m.model_id) !== -1);
+        updateCardHeader(node, chart);
+        renderChart(chart, node);
+      });
+      modelChips.appendChild(btn);
+    });
+
+    $('.edit-btn', node).addEventListener('click', function(){
+      $('.chart-overrides', node).classList.toggle('open');
+    });
+    $('.remove-btn', node).addEventListener('click', function(){
+      if(chart.mode === 'auto'){
+        toggleInArray(state.selectedParameters, chart.parameter);
+        syncChipState();
+      }
+      charts = charts.filter(function(c){ return c.id !== chart.id; });
+      renderChartCards();
+    });
+
+    node._chartObj = chart;
+    return node;
+  }
+
+  function effectiveSites(chart){ return chart.sites && chart.sites.length ? chart.sites : state.selectedSites; }
+  function effectiveModels(chart){
+    if(chart.models && chart.models.length) return chart.models;
+    if(chart.mode === 'custom' && chart.models === null) return null;
+    return state.allModels ? null : state.selectedModels;
+  }
+
+  function updateCardHeader(node, chart){
+    $('.tag', node).textContent = chart.mode === 'auto' ? 'Default' : 'Custom';
+    $('.title', node).textContent = paramLabel(chart.parameter);
+    var sites = effectiveSites(chart);
+    var siteText = sites.length ? sites.map(siteLabel).join(', ') : 'No sites selected';
+    var models = effectiveModels(chart);
+    var modelText = 'All models';
+    if(models && models.length === 1){
+      var single = state.models.find(function(m){ return m.model_id === models[0]; });
+      modelText = single ? single.model_name : '1 model';
+    } else if(models && models.length) {
+      modelText = models.length + ' models';
+    }
+    $('.subtitle', node).textContent = siteText + ' · ' + modelText;
+
+    $all('.site-chips .chip', node).forEach(function(btn, i){
+      btn.classList.toggle('active', sites.indexOf(state.sites[i].site_id) !== -1);
+    });
+    $all('.model-chips .chip', node).forEach(function(btn, i){
+      var active = models ? models.indexOf(state.models[i].model_id) !== -1 : false;
+      btn.classList.toggle('active', active);
+    });
+  }
+
+  function setCardLoading(node, on, message){
+    var statusEl = $('.chart-status', node);
+    statusEl.classList.toggle('hidden', !on);
+    if(message) statusEl.querySelector('span').textContent = message;
+  }
+
+  function renderChart(chart, node){
+    var sites = effectiveSites(chart);
+    if(!sites.length){
+      setCardLoading(node, true, 'Choose at least one site.');
+      if(node._chartInstance){ node._chartInstance.destroy(); node._chartInstance = null; }
+      return;
+    }
+    var models = effectiveModels(chart);
+    var qs = 'site_id=' + sites.join(',') + '&parameters=' + encodeURIComponent(chart.parameter) + '&' + buildTimeParams();
+    if(models && models.length) qs += '&model_id=' + models.join(',');
+
+    setCardLoading(node, true, 'Loading forecast…');
+    api('/api/forecast?' + qs).then(function(data){
+      setCardLoading(node, false);
+      try {
+        drawChart(node, chart, data);
+      } catch (err) {
+        setCardLoading(node, true, err.message);
+      }
+    }).catch(function(err){
+      setCardLoading(node, true, err.message);
+    });
+  }
+
+  function drawChart(node, chart, data){
+    var series = data.series || [];
+    if(!series.length){
+      setCardLoading(node, true, 'No data for this selection yet.');
+      if(node._chartInstance){ node._chartInstance.destroy(); node._chartInstance = null; }
+      return;
+    }
+    var labelsSet = [];
+    var seen = {};
+    series.forEach(function(row){
+      if(!seen[row.forecast_time]){ seen[row.forecast_time] = true; labelsSet.push(row.forecast_time); }
+    });
+    labelsSet.sort();
+    var labels = labelsSet.map(fmtTimeLabel);
+
+    var bySeries = {};
+    var order = [];
+    series.forEach(function(row){
+      var key = row.site_name + ' · ' + row.model_name;
+      if(!bySeries[key]){ bySeries[key] = {}; order.push(key); }
+      bySeries[key][row.forecast_time] = row.value;
+    });
+
+    var datasets = order.map(function(key){
+      var color = colorFor(key);
+      return {
+        label: key,
+        data: labelsSet.map(function(t){ var v = bySeries[key][t]; return v === undefined ? null : v; }),
+        borderColor: color,
+        backgroundColor: color,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        borderWidth: 2,
+        tension: 0.25,
+        spanGaps: true
+      };
+    });
+
+    var unitLabel = (data.parameters && data.parameters[0]) ? paramLabel(data.parameters[0]) : '';
+
+    if(node._chartInstance){
+      var c = node._chartInstance;
+      c.data.labels = labels;
+      c.data.datasets = datasets;
+      c.options.scales.y.title.text = unitLabel;
+      c.update();
+      return;
+    }
+
+    var ctx = $('canvas', node).getContext('2d');
+    node._chartInstance = new (requireChart())(ctx, {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#8AA3B0', boxWidth: 10, boxHeight: 10, font: { size: 11, family: "'Inter',sans-serif" } }
+          },
+          tooltip: {
+            backgroundColor: '#16293A',
+            borderColor: '#23394A',
+            borderWidth: 1,
+            titleColor: '#E7EEF1',
+            bodyColor: '#E7EEF1',
+            padding: 10
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#5C7282', maxRotation: 0, autoSkip: true, font: { size: 10.5, family: "'IBM Plex Mono',monospace" } },
+            grid: { color: '#1A2C3A' }
+          },
+          y: {
+            title: { display: true, text: unitLabel, color: '#5C7282', font: { size: 11 } },
+            ticks: { color: '#5C7282', font: { size: 10.5, family: "'IBM Plex Mono',monospace" } },
+            grid: { color: '#1A2C3A' }
+          }
+        }
+      }
+    });
+  }
+
+  function refreshAll(){
+    $('#applyBtn').classList.add('loading');
+    var nodes = $all('.chart-card');
+    nodes.forEach(function(node){
+      var chart = charts.find(function(c){ return c.id === node.dataset.chartId; });
+      if(chart) renderChart(chart, node);
+    });
+    setTimeout(function(){ $('#applyBtn').classList.remove('loading'); }, 350);
+  }
+
+  $('#filtersToggle').addEventListener('click', function(){
+    $('#filtersPanel').classList.add('open');
+    $('#filtersBackdrop').classList.add('open');
+  });
+  function closeFilters(){
+    $('#filtersPanel').classList.remove('open');
+    $('#filtersBackdrop').classList.remove('open');
+  }
+  $('#filtersClose').addEventListener('click', closeFilters);
+  $('#filtersBackdrop').addEventListener('click', closeFilters);
+
+  function buildTideline(){
+    var svg = $('#tideline');
+    var path = 'M0,15 ';
+    for(var x=0;x<=600;x+=20){
+      var y = 15 + Math.sin(x/40) * 6;
+      path += 'L' + x + ',' + y.toFixed(1) + ' ';
+    }
+    svg.innerHTML = '<path d="' + path + '" fill="none" stroke="#2C5A50" stroke-width="1.5"/>';
+  }
+  buildTideline();
+
+  loadMeta();
+})();
+</script>
+</body>
+</html>
