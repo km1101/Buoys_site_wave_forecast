@@ -145,11 +145,20 @@ function toggleParameterMenu(forceOpen) {
   menu.hidden = !open;
   trigger.setAttribute("aria-expanded", open ? "true" : "false");
 }
-
+'''
 function initMap() {
   state.map = L.map("map").setView([51.5, -9], 6);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap",
+  }).addTo(state.map);
+}
+'''
+function initMap() {
+  state.map = L.map("map").setView([51.5, -9], 6);
+  
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
   }).addTo(state.map);
 }
 
